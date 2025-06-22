@@ -1,0 +1,8 @@
+{
+  "Typ identyfikatora": "id_type",
+  "Identyfikator": "id_value",
+  "Produkt": "product",
+  "Aktywny": "is_active",
+  "Data obowiązywania od": "data_od",
+  "Data obowiązywania do": "data_do"
+} 

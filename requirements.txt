@@ -1,0 +1,15 @@
+# For reading Excel files
+pandas
+openpyxl
+
+# For SharePoint integration
+Office365-REST-Python-Client
+
+# For PostgreSQL database connection
+psycopg2-binary
+
+# For reading the configuration file
+PyYAML
+
+# For making REST API calls in Phase 2
+requests 

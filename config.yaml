@@ -1,0 +1,27 @@
+# SharePoint Credentials & Configuration
+sharepoint:
+  user_login: "your-email@your-domain.com"
+  user_password: "your_password"
+  library_url: "https://your-tenant.sharepoint.com/sites/YourSite/YourLibrary"
+
+# PostgreSQL Database Configuration
+database:
+  user_login: "db_user"
+  user_password: "db_password"
+  host: "localhost"
+  port: 5432
+  db_name: "your_database"
+
+# Schema API Configuration (for Phase 2)
+schema_api:
+  url: "https://api.example.com/schemas/descriptive_data"
+  user: "api_user"
+  password: "api_password"
+
+# Email Notification Configuration
+notifications:
+  smtp_server: "smtp.your-email-provider.com"
+  smtp_port: 587
+  smtp_user: "your-email@your-domain.com"
+  smtp_password: "your_password"
+  sender_email: "noreply@your-domain.com" 

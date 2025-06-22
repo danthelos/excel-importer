@@ -1,0 +1,10 @@
+{
+  "id_type": "VARCHAR(255)",
+  "id_value": "VARCHAR(255)",
+  "product": "VARCHAR(255)",
+  "login": "VARCHAR(255)",
+  "data_od": "DATETIME",
+  "data_do": "DATETIME",
+  "dane_opisowe": "jsonb",
+  "version": "TIMESTAMP"
+} 

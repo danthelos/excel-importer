@@ -1,0 +1,8 @@
+{
+  "taxi": "boolean",
+  "czy włoski": "boolean",
+  "prius": "boolean",
+  "Prawdopodobieństwo zalania": "float",
+  "Notatka": "string",
+  "Ostatnia wizyta": "date"
+} 
