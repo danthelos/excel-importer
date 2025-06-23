@@ -12,6 +12,13 @@ database:
   port: 5432
   db_name: "your_database"
 
+# Local Folders for Phase 1
+local:
+  input_folder: "data/input" # use: "/data/input" in Unix environment
+  output_folder: "data/output" # use: "/data/output" in Unix environment
+  imported_folder: "data/imported" # use: "/data/imported" in Unix environment
+  broken_folder: "data/broken" # use: "/data/broken" in Unix environment
+
 # Schema API Configuration (for Phase 2)
 schema_api:
   url: "https://api.example.com/schemas/descriptive_data"

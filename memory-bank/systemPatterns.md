@@ -1,55 +1,53 @@
 # System Patterns: Excel Data Importer
 
 ## System Architecture
-The system follows a phased data pipeline architecture that evolves from a standalone script to a managed Airflow DAG.
+The system is developed in four incremental phases:
 
-- **Phase 1 - Standalone Application**: A Python script, orchestrated by a system scheduler (like cron), performs the entire ETL process. It reads a `config.yaml` file for parameters, connects to SharePoint to fetch Excel files, processes them, and loads the data into a PostgreSQL database. The structure is modular, with core logic separated into a `utils.py` file.
+- **Phase 1: Local File Processing**: The application reads Excel files from a local folder, validates and transforms the data, and exports the results to a CSV file in a local folder. This phase is designed for rapid, offline development and testing.
 
-- **Phase 2 - Airflow DAG**: The logic from the standalone application is refactored into tasks within an Airflow DAG. Airflow manages scheduling, execution, retries, and monitoring. In this phase, the schema for validating descriptive data is fetched from an external REST API, making the validation process more dynamic.
+- **Phase 2: Database Export**: The application replaces CSV export with direct export to a PostgreSQL database, introducing transactional data handling and persistence.
+
+- **Phase 3: SharePoint Server 2019 Integration**: The application imports Excel files from a SharePoint Server 2019 document library (not Office 365/SharePoint Online), continuing to export data to the database.
+
+- **Phase 4: Workflow Orchestration and Schema API**: The application is orchestrated by Airflow and uses a REST API for schema validation, enabling enterprise-scale automation and dynamic validation rules.
 
 ## Key Technical Decisions
-- **Separation of Concerns**: Configuration (`config.yaml`) is strictly separated from the application code, allowing for easy updates without touching the logic.
-- **Flexible Data Handling with JSONB**: Using a `jsonb` column (`dane_opisowe`) in PostgreSQL to store variable descriptive data. This avoids rigid table structures and allows the importer to handle new or unexpected columns in the source Excel files gracefully.
-- **Immutable Data History**: On finding a duplicate record (based on `id_type`, `id_value`, `product`), the system creates a new version with an updated timestamp and merged descriptive data, rather than overwriting the existing record. This preserves a full audit trail.
-- **Phased Development**: A two-phase approach was chosen to de-risk the project. It allows the core business logic to be built and tested first (Phase 1) before introducing the complexities of a distributed workflow orchestrator like Airflow (Phase 2).
+- **Incremental Development**: The phased approach allows for early validation of core logic and incremental introduction of complexity.
+- **Local-First**: Starting with local file/folder operations ensures the core logic is robust and testable before introducing external dependencies.
+- **Database as Source of Truth**: In phase 2 and beyond, the database becomes the primary destination for processed data.
+- **SharePoint Server 2019**: Integration is specifically with SharePoint Server 2019, not Office 365/SharePoint Online, to match enterprise requirements.
+- **Workflow Orchestration**: Airflow is introduced only after the core logic and integrations are proven.
 
 ## Design Patterns in Use
-- **ETL (Extract, Transform, Load)**: This is the overarching pattern.
-  - **Extract**: Reading Excel files from the SharePoint library.
-  - **Transform**: Applying business rules, validating data against schemas, mapping columns, and handling versioning.
-  - **Load**: Inserting the processed records into the PostgreSQL `blacklist.entity` table.
-- **Utility/Helper Functions**: The core, reusable logic for interacting with SharePoint, the database, and performing validation is encapsulated in helper functions within `utils.py` to keep the main script clean and readable.
-- **Strategy Pattern (Conceptual)**: The validation logic can be seen as a strategy. In Phase 1, the strategy is to use a local schema file. In Phase 2, the strategy is switched to use a REST API, without changing the core import workflow.
-- **Mocking for Offline Development**: Test data generators (e.g., `test_utils.py`) are used to simulate external inputs like Excel files. This pattern decouples the core data processing and validation logic from the modules that interact with live external services, enabling rapid, offline testing of the pipeline's business rules.
-- **Separated Test Runner**: The application includes a dedicated test runner script (`run_tests.py`) that is completely independent of the production entry point (`main.py`). This allows for safe and repeatable testing of the core logic without invoking any production code that might interact with live services.
+- **ETL (Extract, Transform, Load)**: The core pattern for all phases.
+- **Mocking for Offline Development**: Test data generators and local files are used to simulate external inputs, enabling rapid, offline testing.
+- **Separated Test Runner**: The application includes a dedicated test runner script (`run_tests.py`) that is completely independent of the production entry point (`main.py`).
 
 ## Component Relationships
 ```mermaid
 graph TD
-    subgraph SharePoint
-        A[Excel File Upload] --> B(Target Library)
+    subgraph Local
+        A[Excel File in Local Folder] --> B[Python App]
+        B --> C[CSV File in Local Folder]
     end
-
-    subgraph "Python App / Airflow DAG"
-        C{Orchestrator}
+    subgraph Database
+        B --> D[PostgreSQL DB]
     end
-
-    subgraph "External Services"
-        D[PostgreSQL DB]
-        E[SMTP Server]
-        F[Schema REST API]
+    subgraph SharePoint2019
+        E[Excel File in SP2019 Library] --> B
     end
-
-    A --> C
-    C -- Reads File --> B
-    C -- Validates Schema --> F
-    C -- Inserts Data --> D
-    C -- Sends Error Email --> E
-    C -- Moves Processed File --> B
+    subgraph Airflow
+        F[Airflow DAG] --> B
+    end
+    subgraph External
+        B --> G[Schema REST API]
+    end
 ```
 
 ## Critical Implementation Paths
-- **SharePoint Authentication and API Interaction**: The connection and authentication with SharePoint are critical. The logic must be robust to handle API changes or transient network issues.
-- **Data Validation Engine**: The accuracy of the data validation logic is paramount. Errors in this component could lead to corrupt data entering the database or valid data being rejected.
-- **Record Versioning Logic**: The process of identifying existing records and correctly creating new versions with merged JSONB data must be atomic and free of race conditions to ensure data consistency.
-- **Transactional File Moves**: Moving files to the `imported` or `broken` folders in SharePoint must be a transactional step that only occurs after the database operation (or the decision to reject) is finalized. This prevents a file from being processed more than once. 
+- **File I/O**: Reading and writing files locally must be robust and handle edge cases (e.g., missing files, permissions).
+- **Data Validation Engine**: The accuracy of the data validation logic is paramount.
+- **Database Transactions**: In phase 2 and beyond, all database operations must be transactional.
+- **SharePoint Server 2019 API**: Integration must use the correct API for on-premises SharePoint.
+- **Workflow Orchestration**: Airflow integration must be modular and not disrupt the core logic.
+- **Structured JSON Logging**: All process events (row import, validation, export, error, etc.) are logged in JSON format compatible with ElasticSearch, including: `timestamp`, `file_name`, `id_type`, `id_value`, `product`, `level`, `action`, `result`. In Phase 1, logging occurs after CSV export; in Phase 2 (and beyond), logging occurs after successful or failed database export. 

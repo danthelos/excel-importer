@@ -2,45 +2,49 @@
 
 ## Technologies Used
 - **Programming Language**: Python 3.x
-- **Data Storage**: PostgreSQL (for blacklist data), SharePoint (for Excel files)
-- **Orchestration**:
-  - **Phase 1**: System scheduler (e.g., cron)
-  - **Phase 2**: Apache Airflow
-- **Key Python Libraries**:
-  - `pandas` / `openpyxl`: For reading Excel files.
+- **Phase 1: Local File Operations**:
+  - `pandas`, `openpyxl`: For reading Excel files from a local folder and exporting to CSV.
+  - Standard Python libraries for file I/O and error handling.
+- **Phase 2: Database Export**:
   - `psycopg2-binary`: For PostgreSQL interaction.
-  - `PyYAML`: For parsing the configuration file.
-  - `Office365-REST-Python-Client` (or similar): For SharePoint API communication.
-  - `requests`: For Phase 2 REST API calls.
-  - `logging`: For structured JSON logging.
+- **Phase 3: SharePoint Server 2019 Integration**:
+  - A Python library for SharePoint Server 2019 (on-premises) integration (e.g., `Office365-REST-Python-Client` or a compatible alternative for SP2019).
+- **Phase 4: Workflow Orchestration and Schema API**:
+  - `apache-airflow`: For workflow orchestration.
+  - `requests`: For REST API schema validation.
 - **Configuration Format**: YAML
-- **Data Interchange Format**: JSON (for `dane_opisowe` and logs)
+- **Data Interchange Format**: JSON (for `dane_opisowe` and logs), CSV (for local export)
 
 ## Development Setup
 1.  **Environment**: Create and activate a Python virtual environment (e.g., `python -m venv .venv`).
 2.  **Dependencies**: Install all required packages using `pip install -r requirements.txt`.
 3.  **Configuration**:
     - Create a `config.yaml` file from a provided template.
-    - Populate it with valid credentials and URLs for your development SharePoint site and PostgreSQL database. **Do not commit this file.**
-4.  **Database Schema**: Ensure the `blacklist.entity` table exists in the PostgreSQL database with the correct schema (`id_type`, `id_value`, `product`, `dane_opisowe`, etc.).
-5.  **SharePoint Folders**: Create the necessary folders in the SharePoint library: a root folder to monitor, and sub-folders named `imported` and `broken`.
-6.  **Airflow (Phase 2)**: A local Airflow instance (e.g., via the official Docker Compose setup) will be required for developing and testing the DAG.
+    - Populate it with valid credentials and paths for your local folders, database, and (in later phases) SharePoint and Airflow.
+4.  **Local Folders**: For Phase 1, create input and output folders for Excel and CSV files.
+5.  **Database Schema**: For Phase 2 and beyond, ensure the `blacklist.entity` table exists in the PostgreSQL database with the correct schema.
+6.  **SharePoint Folders**: For Phase 3, ensure access to a SharePoint Server 2019 document library.
+7.  **Airflow (Phase 4)**: A local Airflow instance (e.g., via Docker Compose) will be required for developing and testing the DAG.
 
 ## Technical Constraints
-- **Network Access**: The application's runtime environment must have network access to both the SharePoint Online service and the PostgreSQL database host.
-- **External API Dependency (Phase 2)**: The system's ability to validate descriptive data in Phase 2 is entirely dependent on the availability and correctness of the external schema REST API.
-- **Statelessness**: The application itself must be stateless. All state is maintained externally in SharePoint (by moving files) and in the PostgreSQL database (by storing records). This is crucial for running in a distributed environment like Airflow.
+- **Local-First**: All logic in Phase 1 must work without any network or database dependencies.
+- **Incremental Integration**: Each phase should be independently testable before moving to the next.
+- **SharePoint Server 2019**: Integration must use the correct API for on-premises SharePoint, not Office 365/SharePoint Online.
+- **Statelessness**: The application itself must be stateless. All state is maintained externally in files, the database, or SharePoint.
 
 ## Dependencies
-- **SharePoint Client Library**: A specific Python library to handle authentication and interaction with the SharePoint REST API. The exact choice will be a key decision.
-- **PostgreSQL Driver**: `psycopg2` is the standard, but alternatives could be considered if performance issues arise.
-- **Airflow Environment (Phase 2)**: A functional Airflow deployment is required to run the final version of the pipeline.
+- **pandas**, **openpyxl**: For Excel and CSV operations.
+- **psycopg2-binary**: For PostgreSQL (Phase 2+).
+- **SharePoint Client Library**: For SharePoint Server 2019 integration (Phase 3).
+- **apache-airflow**: For workflow orchestration (Phase 4).
+- **requests**: For REST API schema validation (Phase 4).
 
 ## Tool Usage Patterns
 - **Version Control**: Git should be used for all code changes. A feature-branch workflow is recommended.
 - **Dependency Management**: All Python dependencies must be explicitly listed with their versions in a `requirements.txt` file to ensure reproducible builds.
 - **Configuration**: All environment-specific variables, credentials, and endpoints **must** be managed in the `config.yaml` file. There should be no hardcoded secrets in the source code.
 - **Logging**: The standard `logging` library should be configured at the start of the application to output structured JSON. This ensures that logs are machine-readable and can be easily ingested by services like ElasticSearch.
+- **Structured JSON Logging**: All process events (row import, validation, export, error, etc.) are logged in JSON format compatible with ElasticSearch, including: `timestamp`, `file_name`, `id_type`, `id_value`, `product`, `level`, `action`, `result`. In Phase 1, logging occurs after CSV export; in Phase 2 (and beyond), logging occurs after successful or failed database export.
 - **Test Utils**: `test_utils.py` is used for generating mock data for local testing.
 
 ## Data Schemas and Samples

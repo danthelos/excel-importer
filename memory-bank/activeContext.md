@@ -1,36 +1,39 @@
 # Active Context: Excel Data Importer
 
 ## Current Work Focus
-The project is moving from core logic implementation to integration. The immediate focus is on replacing the placeholder functions in `utils.py` with code that connects to and interacts with live external services (SharePoint, PostgreSQL, SMTP).
+Phase 1 is now functionally complete. The application reads all Excel files from a local folder, validates each row individually, and appends all good rows from all files to a single CSV file (`output/data.csv`). This simulates a database table for versioning and merging logic. Detailed error info for all bad rows is collected and sent in a report to a mocked email function. The focus is now on preparing for Phase 2 (database export) and gathering feedback on the local workflow.
 
 ## Recent Changes
-- **Code Refactoring**: The project has been refactored to completely separate test execution (`run_tests.py`) from the production application (`main.py`).
-- **Negative Testing Implemented**: The test framework has been enhanced to validate against known-bad data in `test_data.xlsx`, and the test runner now asserts that specific errors are caught.
-- **Successful Test Run**: The dedicated test script has been successfully run, correctly identifying all expected errors in the test data.
-- **Application Skeleton**: The production entry point, `main.py`, is now a clean skeleton ready for live integration.
-- **Pandas Best Practices**: Addressed a `FutureWarning` in pandas to ensure forward compatibility.
+- **Single Output CSV**: All good rows from all Excel files are now appended to a single output CSV (`output/data.csv`), not separate files per input. This better simulates a database table and supports versioning/merging across files.
+- **Partial Import and Error Reporting**: The application supports partial import of good rows, detailed per-row error reporting, and user notification via a mocked email function.
+- **Versioning/Merging Logic**: If a record (combination of `id_type`, `id_value`, `product`) already exists in the output CSV, the system merges `dane_opisowe`, creates a new versioned row, and leaves the old row unchanged.
+- **Detailed Logging**: All errors are logged with row number, column, error type, value, and full row data.
+- **Successful Test Run**: The main application has been successfully run against both valid and invalid data, with correct export and error reporting.
+- **Configurable Data Directories**: All data directories (input, output, imported, broken) are now under `/data` and their paths are configurable via `config.yaml`.
+- **File Movement**: After processing, Excel files are moved to the `imported` folder on success or to the `broken` folder if there are any errors during import.
+- **Test Code and Data Structure**: All test code and data are now located in the `/tests` directory (`tests/input`, `tests/output`, etc.), and `config.yaml` points to these locations.
+- **Config Separation**: The main application uses `config.yaml` (with `data/` folders), while tests use `config.test.yaml` (with `tests/` folders). This ensures a clear separation between production and test environments.
 
 ## Next Steps
-1.  **Implement SharePoint Integration**:
-    -   Replace the `get_new_files` and `move_file` placeholder functions in `utils.py` with live code using the `Office365-REST-Python-Client` library.
-    -   Verify that the file author's login can be retrieved.
-2.  **Implement Database Integration**:
-    -   Replace the `connect_to_db` and `insert_record` functions with live code using the `psycopg2` library.
-3.  **Implement Email Notifications**:
-    -   Replace the `send_error_email` function with live code using Python's `smtplib`.
+1.  **Prepare for Phase 2: Database Export**:
+    - Refactor the export logic to support writing to a PostgreSQL database instead of CSV.
+    - Ensure transactional integrity and error handling for database operations.
+2.  **Phase 3: SharePoint Server 2019 Integration**:
+    - Implement logic to import files from a SharePoint Server 2019 document library.
+3.  **Phase 4: Airflow and Schema API**:
+    - Integrate the workflow into Airflow and switch schema validation to use a REST API.
 
 ## Active Decisions and Considerations
-- **Credential Management**: As we move to live integrations, ensuring that credentials in `config.yaml` are handled securely and are not committed to version control is paramount. The `.gitignore` file should be updated to include `config.yaml`.
-- **SharePoint API**: The specific API calls needed to fetch the file author's email and move files efficiently need to be confirmed during implementation.
-- **Error Handling**: The real implementation of placeholder functions must include robust error handling for scenarios like failed connections, permissions issues, or API errors.
+- **User Feedback**: The detailed error report is designed to be user-friendly and actionable, supporting future email notification workflows.
+- **Incremental Complexity**: The phased approach continues to allow for early testing and validation of core logic before introducing external dependencies.
+- **Local Testing**: All logic in Phase 1 is easily testable without any network or database dependencies.
 
 ## Important Patterns and Preferences
-- **Modularity**: Continue to ensure that all functions in `utils.py` are self-contained and have a single responsibility.
+- **Modularity**: Each phase is implemented in a way that allows for easy extension or replacement in subsequent phases.
 - **Type Hinting**: Maintain strict type hinting for all new code.
-- **Defensive Coding**: All new code that interacts with external systems must be wrapped in `try...except` blocks.
+- **Defensive Coding**: All new code that interacts with files or external systems must be wrapped in `try...except` blocks.
 
 ## Learnings and Project Insights
-- A robust testing strategy must include negative test cases to ensure that data validation logic is working as expected. Asserting that specific errors are caught is more reliable than simply checking if a process fails.
-- Separating test execution (`run_tests.py`) from application code (`main.py`) provides a much cleaner project structure and a more realistic development workflow.
-- Using a physical test file (`test_data.xlsx`) for local runs provides higher fidelity testing and ensures the Excel parsing logic itself is validated, not just the subsequent transformations.
-- Iterative testing is crucial for identifying issues (like the pandas `FutureWarning`) early in the development process. 
+- Per-row validation and partial import provide a much better user experience and data quality than all-or-nothing imports.
+- Detailed, actionable error reporting is essential for user adoption and smooth operation.
+- The phased, testable approach is working well and will make future integrations easier. 

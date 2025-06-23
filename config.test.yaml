@@ -1,0 +1,6 @@
+local:
+  input_folder: "tests/input"
+  output_folder: "tests/output"
+  imported_folder: "tests/imported"
+  broken_folder: "tests/broken"
+// ... copy any other relevant config sections from config.yaml ... 
