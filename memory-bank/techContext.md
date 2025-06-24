@@ -31,7 +31,7 @@
 - **Incremental Integration**: Each phase should be independently testable before moving to the next.
 - **SharePoint Server 2019**: Integration must use the correct API for on-premises SharePoint, not Office 365/SharePoint Online.
 - **Statelessness**: The application itself must be stateless. All state is maintained externally in files, the database, or SharePoint.
-- **Database Versioning**: The database table must allow multiple records with the same (id_type, id_value, product). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.
+- **Database Versioning**: The database table must allow multiple records with the same (id_type, id_value, product_type). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.
 
 ## Dependencies
 - **pandas**, **openpyxl**: For Excel and CSV operations.
@@ -45,7 +45,7 @@
 - **Dependency Management**: All Python dependencies must be explicitly listed with their versions in a `requirements.txt` file to ensure reproducible builds.
 - **Configuration**: All environment-specific variables, credentials, and endpoints **must** be managed in the `config.yaml` file. There should be no hardcoded secrets in the source code.
 - **Logging**: The standard `logging` library should be configured at the start of the application to output structured JSON. This ensures that logs are machine-readable and can be easily ingested by services like ElasticSearch.
-- **Structured JSON Logging**: All process events (row import, validation, export, error, etc.) are logged in JSON format compatible with ElasticSearch, including: `timestamp`, `file_name`, `id_type`, `id_value`, `product`, `level`, `action`, `result`. In Phase 1, logging occurs after CSV export; in Phase 2 (and beyond), logging occurs after successful or failed database export.
+- **Structured JSON Logging**: All process events (row import, validation, export, error, etc.) are logged in JSON format compatible with ElasticSearch, including: `timestamp`, `file_name`, `id_type`, `id_value`, `product_type`, `level`, `action`, `result`. In Phase 1, logging occurs after CSV export; in Phase 2 (and beyond), logging occurs after successful or failed database export.
 - **Test Utils**: `test_utils.py` is used for generating mock data for local testing.
 
 ## Data Schemas and Samples
@@ -59,7 +59,7 @@ This JSON object maps the Polish column names from the source Excel file to the 
 {
   "Typ identyfikatora": "id_type",
   "Identyfikator": "id_value",
-  "Produkt": "product",
+  "Produkt": "product_type",
   "Aktywny": "is_active",
   "Data obowiązywania od": "data_od",
   "Data obowiązywania do": "data_do"
@@ -73,7 +73,7 @@ This schema defines the required data types for the core columns that will be di
 {
   "id_type": "VARCHAR(255)",
   "id_value": "VARCHAR(255)",
-  "product": "VARCHAR(255)",
+  "product_type": "VARCHAR(255)",
   "login": "VARCHAR(255)",
   "data_od": "DATETIME",
   "data_do": "DATETIME",
@@ -120,7 +120,7 @@ This shows how the raw data from the Excel file will be transformed into JSON ob
 {
   "id_type": "VIN",
   "id_value": "WWWZZZ3BZ4E076409",
-  "product": "AUTO",
+  "product_type": "AUTO",
   "is_active": "tak",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
@@ -137,7 +137,7 @@ This shows how the raw data from the Excel file will be transformed into JSON ob
 {
   "id_type": "NR_DZIAŁKI",
   "id_value": "146518_8.0103.31/2",
-  "product": "ROLNE",
+  "product_type": "ROLNE",
   "is_active": "nie",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
@@ -152,7 +152,7 @@ This shows how the raw data from the Excel file will be transformed into JSON ob
 {
   "id_type": "PESEL",
   "id_value": "52030478900",
-  "product": "all",
+  "product_type": "all",
   "is_active": "tak",
   "data_od": "2024-08-01",
   "data_do": "2025-08-01",

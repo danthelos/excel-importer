@@ -58,8 +58,8 @@ def transform_and_structure_data(df: pd.DataFrame, fixed_columns: list, descript
     """
     df_structured = df.copy()
 
-    if 'product' in df_structured.columns:
-        df_structured['product'].fillna('all', inplace=True)
+    if 'product_type' in df_structured.columns:
+        df_structured['product_type'].fillna('all', inplace=True)
 
     fixed_cols_in_df = [col for col in fixed_columns if col in df_structured.columns and col != 'dane_opisowe']
     # Only include descriptive columns that are present in the descriptive schema
@@ -160,13 +160,13 @@ def send_error_email(recipient, file_name, error_report):
     print("--- END EMAIL ---\n")
 
 # --- Logging Functions ---
-def log_event(file_name, id_type, id_value, product, level, action, result, extra=None):
+def log_event(file_name, id_type, id_value, product_type, level, action, result, extra=None):
     event = {
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "file_name": file_name,
         "id_type": id_type,
         "id_value": id_value,
-        "product": product,
+        "product_type": product_type,
         "level": level,
         "action": action,
         "result": result
@@ -281,13 +281,13 @@ def run_import_pipeline(config_path="config.yaml"):
             for idx, row in df_structured.iterrows():
                 id_type = row.get('id_type')
                 id_value = row.get('id_value')
-                product = row.get('product')
+                product_type = row.get('product_type')
                 is_good = not any(bad['row_num'] == idx+2 for bad in bad_rows)
                 if is_good:
-                    log_event(file_name, id_type, id_value, product, "INFO", "validate_row", "success")
+                    log_event(file_name, id_type, id_value, product_type, "INFO", "validate_row", "success")
                 else:
                     bad = next(b for b in bad_rows if b['row_num'] == idx+2)
-                    log_event(file_name, id_type, id_value, product, "ERROR", "validate_row", "error", {"errors": bad['errors']})
+                    log_event(file_name, id_type, id_value, product_type, "ERROR", "validate_row", "error", {"errors": bad['errors']})
             if not good_df.empty:
                 all_good_rows.append(good_df)
             if bad_rows:
@@ -311,11 +311,11 @@ def run_import_pipeline(config_path="config.yaml"):
             export_dataframe_to_db(combined_good_df, config, logging)
             logging.info(f"Exported {len(combined_good_df)} new versioned rows to PostgreSQL database.")
             for _, row in combined_good_df.iterrows():
-                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product'), "INFO", "export_row", "success", {"target": "PostgreSQL"})
+                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product_type'), "INFO", "export_row", "success", {"target": "PostgreSQL"})
         except Exception as db_exc:
             logging.error(f"Database export failed: {db_exc}")
             for _, row in combined_good_df.iterrows():
-                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product'), "ERROR", "export_row", "error", {"target": "PostgreSQL", "error": str(db_exc)})
+                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product_type'), "ERROR", "export_row", "error", {"target": "PostgreSQL", "error": str(db_exc)})
     else:
         logging.info(f"No valid rows to export from any file.")
     print("Phase 2 complete.")

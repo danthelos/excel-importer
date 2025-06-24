@@ -36,7 +36,7 @@ Create a Python application that automatically imports data from Excel files pla
   - On validation error:
     - Send an email to the file owner (`login`)
     - Move the file to the `broken` folder on SharePoint
-  - If a record (combination of `id_type`, `id_value`, `product`) already exists:
+  - If a record (combination of `id_type`, `id_value`, `product_type`) already exists:
     - Retrieve the `dane_opisowe` column from the old record
     - Create a new record with an updated `version` (timestamp)
     - Merge the old and new descriptive data
@@ -67,7 +67,7 @@ A `columns_mapping.json` file is required to map Excel headers to target databas
 {
   "Typ identyfikatora": "id_type",
   "Identyfikator": "id_value",
-  "Produkt": "product",
+  "Produkt": "product_type",
   "Aktywny": "is_active",
   "Data obowiązywania od": "data_od",
   "Data obowiązywania do": "data_do"
@@ -84,7 +84,7 @@ All other columns not included in this mapping will be serialized into a JSON st
 {
   "id_type": "VARCHAR(255)",
   "id_value": "VARCHAR(255)",
-  "product": "VARCHAR(255)",
+  "product_type": "VARCHAR(255)",
   "login": "VARCHAR(255)",
   "data_od": "DATETIME",
   "data_do": "DATETIME",
@@ -108,18 +108,18 @@ All other columns not included in this mapping will be serialized into a JSON st
 
 #### Sample table to import:
 
-| Typ identyfikatora | Identyfikator       | Produkt | Aktywny | Data obowiązywania od | Data obowiązywania do | taxi | czy włoski | prius | Prawdopodobieństwo zalania | Notatka | Ostatnia wizyta |
+| Identifier Type | Identifier       | Product | Active | Valid From | Valid To | taxi | czy włoski | prius | Prawdopodobieństwo zalania | Note | Last Visit |
 |--------------------|---------------------|---------|---------|------------------------|------------------------|------|------------|--------|-----------------------------|---------|------------------|
-| VIN                | WWWZZZ3BZ4E076409   | AUTO    | tak     | 2024-07-01             | 2025-07-01             | nie  | nie        | nie    |                             |         |                  |
-| VIN                | WWWZZZ3BZ4E076408   | AUTO    | tak     | 2024-07-01             | 2025-07-01             | nie  | tak        | tak    |                             |         |                  |
-| NR_DZIAŁKI         | 146518_8.0103.31/2  | ROLNE   | nie     | 2024-07-01             | 2025-07-01             |  	|		|     |       123                      |         |                  |
-| NR_DZIAŁKI         | 146503_8.0109.61    | DOM     | tak     | 2024-07-01             | 2025-07-01             |   |         |    |                             |         |                  |
-| NR_REJ             | WA12345             | AUTO    | tak     | 2024-07-01             | 2025-07-01             | tak  | tak        | tak    |                             |         |                  |
-| PESEL              | 78030714992         | AUTO    | tak     | 2024-07-01             | 2025-07-01             |  |         |     |                             |     | 2025-07-01       |
-| PESEL              | 6231287548          | DOM     | tak     | 2024-07-01             | 2025-07-01             |   |         |     |                             |      |                  |
-| PESEL              | 69071351178         | ROLNE   | tak     | 2024-07-01             | 2025-07-01             |   |        |     |                             |         |                  |
-| VIN                | WWWZZZ3BZ4E076409   | AUTO    | tak     | 2024-07-01             | 2025-07-01             | tak  | tak        | tak    |                             |         |                  |
-| PESEL              | 52030478900         |         | tak     | 2024-08-01             | 2025-08-01             |   |         |     |                        | brak     | 2025-04-15       |
+| VIN                | WWWZZZ3BZ4E076409   | AUTO    | yes     | 2024-07-01             | 2025-07-01             | no   | no         | no     |                             |         |                  |
+| VIN                | WWWZZZ3BZ4E076408   | AUTO    | yes     | 2024-07-01             | 2025-07-01             | no   | yes        | yes    |                             |         |                  |
+| NR_DZIAŁKI         | 146518_8.0103.31/2  | ROLNE   | no      | 2024-07-01             | 2025-07-01             |      |            |        | 123                         |         |                  |
+| NR_DZIAŁKI         | 146503_8.0109.61    | DOM     | yes     | 2024-07-01             | 2025-07-01             |      |            |        |                             |         |                  |
+| NR_REJ             | WA12345             | AUTO    | yes     | 2024-07-01             | 2025-07-01             | yes  | yes        | yes    |                             |         |                  |
+| PESEL              | 78030714992         | AUTO    | yes     | 2024-07-01             | 2025-07-01             |  |         |     |                             |     | 2025-07-01       |
+| PESEL              | 6231287548          | DOM     | yes     | 2024-07-01             | 2025-07-01             |   |         |     |                             |      |                  |
+| PESEL              | 69071351178         | ROLNE   | yes     | 2024-07-01             | 2025-07-01             |   |        |     |                             |         |                  |
+| VIN                | WWWZZZ3BZ4E076409   | AUTO    | yes     | 2024-07-01             | 2025-07-01             | yes  | yes        | yes    |                             |         |                  |
+| PESEL              | 52030478900         |         | yes     | 2024-08-01             | 2025-08-01             |   |         |     |                        | none     | 2025-04-15       |
 
 #### Sample Transformed Records
 VIN (Product = AUTO)
@@ -128,14 +128,14 @@ VIN (Product = AUTO)
 {
   "id_type": "VIN",
   "id_value": "WWWZZZ3BZ4E076409",
-  "product": "AUTO",
-  "is_active": "tak",
+  "product_type": "AUTO",
+  "is_active": "yes",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
   "dane_opisowe": {
-    "taxi": "nie",
-    "czy włoski": "tak",
-    "prius": "tak"
+    "taxi": "no",
+    "czy włoski": "yes",
+    "prius": "yes"
   }
 }
 ```
@@ -146,8 +146,8 @@ NR_DZIAŁKI (Produkt = ROLNE)
 {
   "id_type": "NR_DZIAŁKI",
   "id_value": "146518_8.0103.31/2",
-  "product": "ROLNE",
-  "is_active": "nie",
+  "product_type": "ROLNE",
+  "is_active": "no",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
   "dane_opisowe": {
@@ -162,13 +162,13 @@ PESEL (Produkt = null → all)
 {
   "id_type": "PESEL",
   "id_value": "52030478900",
-  "product": "all",
-  "is_active": "tak",
+  "product_type": "all",
+  "is_active": "yes",
   "data_od": "2024-08-01",
   "data_do": "2025-08-01",
   "dane_opisowe": {
-    "Notatka": "brak",
-    "Ostatnia wizyta": "2025-04-15"
+    "Note": "none",
+    "Last Visit": "2025-04-15"
   }
 }
 ```

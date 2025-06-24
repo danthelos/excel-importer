@@ -36,7 +36,7 @@ Stwórz aplikację w Pythonie, która automatycznie importuje dane z plików Exc
   - W przypadku błędów:
     - Wyślij e-mail do użytkownika (`login`)
     - Przenieś plik do folderu `broken` na SharePoint
-  - Jeśli rekord (kombinacja `id_type`, `id_value`, `product`) już istnieje:
+  - Jeśli rekord (kombinacja `id_type`, `id_value`, `product_type`) już istnieje:
     - Pobierz `dane_opisowe` ze starego rekordu
     - Utwórz nowy rekord z nowym `version` (timestamp)
     - Połącz dane opisowe ze starego i nowego rekordu
@@ -67,7 +67,7 @@ Wymagany jest plik `kolumny_mapowanie.json`, który odwzorowuje nagłówki z Exc
 {
   "Typ identyfikatora": "id_type",
   "Identyfikator": "id_value",
-  "Produkt": "product",
+  "Produkt": "product_type",
   "Aktywny": "is_active",
   "Data obowiązywania od": "data_od",
   "Data obowiązywania do": "data_do"
@@ -83,7 +83,7 @@ Pozostałe kolumny nieujęte w mapowaniu zostaną zapisane jako jsonb pod klucze
 {
   "id_type": "VARCHAR(255)",
   "id_value": "VARCHAR(255)",
-  "product": "VARCHAR(255)",
+  "product_type": "VARCHAR(255)",
   "login": "VARCHAR(255)",
   "data_od": "DATETIME",
   "data_do": "DATETIME",
@@ -128,7 +128,7 @@ VIN (Product = AUTO)
 {
   "id_type": "VIN",
   "id_value": "WWWZZZ3BZ4E076409",
-  "product": "AUTO",
+  "product_type": "AUTO",
   "is_active": "tak",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
@@ -146,7 +146,7 @@ NR_DZIAŁKI (Produkt = ROLNE)
 {
   "id_type": "NR_DZIAŁKI",
   "id_value": "146518_8.0103.31/2",
-  "product": "ROLNE",
+  "product_type": "ROLNE",
   "is_active": "nie",
   "data_od": "2024-07-01",
   "data_do": "2025-07-01",
@@ -162,7 +162,7 @@ PESEL (Produkt = null → all)
 {
   "id_type": "PESEL",
   "id_value": "52030478900",
-  "product": "all",
+  "product_type": "all",
   "is_active": "tak",
   "data_od": "2024-08-01",
   "data_do": "2025-08-01",

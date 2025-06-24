@@ -11,7 +11,7 @@ This project involves creating a Python application to automatically import data
 - Export the processed data to a CSV file in a local folder.
 - **Log all process events in JSON format compatible with ElasticSearch after successful CSV export (Phase 1).**
 - In Phase 1, all good rows from all Excel files in the input folder are appended to a single output CSV file (`output/data.csv`). This simulates a database table and supports versioning/merging logic across files. There are no per-file CSV exports.
-- If a record (combination of `id_type`, `id_value`, `product`) already exists in the output CSV:
+- If a record (combination of `id_type`, `id_value`, `product_type`) already exists in the output CSV:
   - Retrieve the `dane_opisowe` column from the old record
   - Create a new record with an updated `version` (timestamp)
   - Merge the old and new descriptive data (new values overwrite old keys)
@@ -25,7 +25,7 @@ This project involves creating a Python application to automatically import data
 - Instead of exporting to a CSV, export the processed data directly to a PostgreSQL database.
 - **Log all process events in JSON format compatible with ElasticSearch after successful or failed data export to the database.**
 - In Phase 2, the application exports all validated, versioned data directly to a PostgreSQL database (table must already exist). All process events for DB export are logged. Data is validated before export.
-- **Important: The database table must allow multiple records with the same (id_type, id_value, product). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.**
+- **Important: The database table must allow multiple records with the same (id_type, id_value, product_type). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.**
 - **When constructing `dane_opisowe` for each row, any key with a NaN or empty value must be omitted from the JSON for that row. Only valid, non-empty descriptive data should be stored in the database.**
 - **When constructing `dane_opisowe`, only columns present in the descriptive schema are included. Any column not listed in the schema is ignored and not added to the JSON.**
 

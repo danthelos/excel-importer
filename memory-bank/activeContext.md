@@ -6,7 +6,7 @@ Phase 1 is now functionally complete. The application reads all Excel files from
 ## Recent Changes
 - **Single Output CSV**: All good rows from all Excel files are now appended to a single output CSV (`output/data.csv`), not separate files per input. This better simulates a database table and supports versioning/merging across files.
 - **Partial Import and Error Reporting**: The application supports partial import of good rows, detailed per-row error reporting, and user notification via a mocked email function.
-- **Versioning/Merging Logic**: If a record (combination of `id_type`, `id_value`, `product`) already exists in the output CSV, the system merges `dane_opisowe`, creates a new versioned row, and leaves the old row unchanged.
+- **Versioning/Merging Logic**: If a record (combination of `id_type`, `id_value`, `product_type`) already exists in the output CSV, the system merges `dane_opisowe`, creates a new versioned row, and leaves the old row unchanged.
 - **Detailed Logging**: All errors are logged with row number, column, error type, value, and full row data.
 - **Successful Test Run**: The main application has been successfully run against both valid and invalid data, with correct export and error reporting.
 - **Configurable Data Directories**: All data directories (input, output, imported, broken) are now under `/data` and their paths are configurable via `config.yaml`.
