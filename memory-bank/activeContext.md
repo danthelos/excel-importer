@@ -13,6 +13,7 @@ Phase 1 is now functionally complete. The application reads all Excel files from
 - **File Movement**: After processing, Excel files are moved to the `imported` folder on success or to the `broken` folder if there are any errors during import.
 - **Test Code and Data Structure**: All test code and data are now located in the `/tests` directory (`tests/input`, `tests/output`, etc.), and `config.yaml` points to these locations.
 - **Config Separation**: The main application uses `config.yaml` (with `data/` folders), while tests use `config.test.yaml` (with `tests/` folders). This ensures a clear separation between production and test environments.
+- **Phase 2: Database Export**: The application now exports all validated, versioned data directly to a PostgreSQL database (table must already exist). All process events for DB export are logged. Data is validated before export.
 
 ## Next Steps
 1.  **Prepare for Phase 2: Database Export**:

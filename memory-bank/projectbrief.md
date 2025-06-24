@@ -24,6 +24,10 @@ This project involves creating a Python application to automatically import data
 ### Phase 2: Database Export
 - Instead of exporting to a CSV, export the processed data directly to a PostgreSQL database.
 - **Log all process events in JSON format compatible with ElasticSearch after successful or failed data export to the database.**
+- In Phase 2, the application exports all validated, versioned data directly to a PostgreSQL database (table must already exist). All process events for DB export are logged. Data is validated before export.
+- **Important: The database table must allow multiple records with the same (id_type, id_value, product). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.**
+- **When constructing `dane_opisowe` for each row, any key with a NaN or empty value must be omitted from the JSON for that row. Only valid, non-empty descriptive data should be stored in the database.**
+- **When constructing `dane_opisowe`, only columns present in the descriptive schema are included. Any column not listed in the schema is ignored and not added to the JSON.**
 
 ### Phase 3: SharePoint Server 2019 Integration
 - Import Excel files from a SharePoint Server 2019 document library (not Office 365/SharePoint Online).
@@ -32,6 +36,7 @@ This project involves creating a Python application to automatically import data
 ### Phase 4: Workflow Orchestration and Schema API
 - Integrate the mechanism into an Airflow DAG for scheduled execution.
 - Validate descriptive data using a REST API for schema validation (instead of a local file).
+- **Implement email notifications:** If there are problems with importing an Excel file, send an email notification to the file's author (as specified in the requirements). This is not yet implemented and is required for project completion.
 
 ## Goals
 - Start with a simple, testable local workflow and incrementally add complexity.

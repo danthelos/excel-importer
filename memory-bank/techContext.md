@@ -31,6 +31,7 @@
 - **Incremental Integration**: Each phase should be independently testable before moving to the next.
 - **SharePoint Server 2019**: Integration must use the correct API for on-premises SharePoint, not Office 365/SharePoint Online.
 - **Statelessness**: The application itself must be stateless. All state is maintained externally in files, the database, or SharePoint.
+- **Database Versioning**: The database table must allow multiple records with the same (id_type, id_value, product). There must NOT be a primary key or unique constraint on these columns. This is required to support versioning/history as per the business logic.
 
 ## Dependencies
 - **pandas**, **openpyxl**: For Excel and CSV operations.

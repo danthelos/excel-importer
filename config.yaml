@@ -6,11 +6,13 @@ sharepoint:
 
 # PostgreSQL Database Configuration
 database:
-  user_login: "db_user"
-  user_password: "db_password"
+  user_login: "testuser"
+  user_password: "testpass"
   host: "localhost"
   port: 5432
-  db_name: "your_database"
+  db_name: "testdb"
+  schema: "blacklist"
+  table: "entity"
 
 # Local Folders for Phase 1
 local:
