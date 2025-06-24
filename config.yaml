@@ -6,8 +6,8 @@ sharepoint:
 
 # PostgreSQL Database Configuration
 database:
-  user_login: "testuser"
-  user_password: "testpass"
+  user_login: "test"
+  user_password: "test"
   host: "localhost"
   port: 5432
   db_name: "testdb"

@@ -7,6 +7,8 @@ import os
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
+from office365.runtime.auth.user_credential import UserCredential
+from office365.sharepoint.client_context import ClientContext
 
 # This file will contain all the core functions for the Excel Importer application.
 
@@ -144,12 +146,65 @@ def format_error_report(bad_rows):
 
 # --- SharePoint Functions (Placeholders) ---
 def get_new_files(sp_config):
-    logging.info("Checking for new files in SharePoint... (Placeholder)")
-    return [{"name": "sample_data.xlsx", "content": b"", "author": "test.user@example.com"}]
+    """
+    Connects to SharePoint Server 2019 and retrieves new Excel files from the configured document library.
+    Returns a list of dicts: {"name": ..., "content": ..., "author": ...}
+    """
+    import io
+    site_url = sp_config["library_url"]
+    username = sp_config["user_login"]
+    password = sp_config["user_password"]
+    results = []
+    try:
+        ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
+        library = ctx.web.lists.get_by_title("Documents")  # Adjust if your library name is different
+        files = library.root_folder.files
+        ctx.load(files)
+        ctx.execute_query()
+        for file in files:
+            if file.name.lower().endswith(".xlsx"):
+                file_obj = library.root_folder.files.get_by_url(file.serverRelativeUrl)
+                ctx.load(file_obj)
+                ctx.execute_query()
+                file_content = file_obj.read()
+                # Try to get author (Created By)
+                author = None
+                try:
+                    ctx.load(file_obj, ["Author"])
+                    ctx.execute_query()
+                    author = getattr(file_obj.properties.get("Author"), "Email", None)
+                except Exception:
+                    pass
+                results.append({
+                    "name": file.name,
+                    "content": file_content,
+                    "author": author
+                })
+        logging.info(f"Found {len(results)} Excel files in SharePoint.")
+    except Exception as e:
+        logging.error(f"Error accessing SharePoint: {e}")
+    return results
 
-def move_file(sp_config, file_name, destination):
-    logging.info(f"Moving file '{file_name}' to '{destination}' folder... (Placeholder)")
-    return True
+def move_file(sp_config, file_name, destination_folder):
+    """
+    Moves a file in SharePoint to a different folder (e.g., imported or broken).
+    """
+    site_url = sp_config["library_url"]
+    username = sp_config["user_login"]
+    password = sp_config["user_password"]
+    try:
+        ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
+        library = ctx.web.lists.get_by_title("Documents")  # Adjust if your library name is different
+        file_url = f"{library.root_folder.serverRelativeUrl}/{file_name}"
+        dest_url = f"{library.root_folder.serverRelativeUrl}/{destination_folder}/{file_name}"
+        file = ctx.web.get_file_by_server_relative_url(file_url)
+        file.move_to(dest_url, 1)  # 1 = overwrite if exists
+        ctx.execute_query()
+        logging.info(f"Moved file '{file_name}' to '{destination_folder}' in SharePoint.")
+        return True
+    except Exception as e:
+        logging.error(f"Error moving file '{file_name}' in SharePoint: {e}")
+        return False
 
 # --- Notification Functions (Placeholders) ---
 def send_error_email(recipient, file_name, error_report):
@@ -221,7 +276,7 @@ def export_dataframe_to_db(dataframe, config, logger):
                 raise
         logger.info(f"All rows exported to database table '{schema_name}.{table_name}'.")
 
-def run_import_pipeline(config_path="config.yaml"):
+def run_import_pipeline(config_path):
     import os
     import yaml
     import json
@@ -237,16 +292,7 @@ def run_import_pipeline(config_path="config.yaml"):
         logging.error(f"Error loading config: {e}")
         print("Failed to load config. Exiting.")
         return
-    def load_json_schema(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            logging.error(f"Error loading JSON schema {path}: {e}")
-            return None
-    column_mapping = load_json_schema("columns_mapping.json")
-    fixed_schema = load_json_schema("fixed_columns.json")
-    descriptive_schema = load_json_schema("descriptive_data.json")
+    column_mapping, fixed_schema, descriptive_schema = load_schemas()
     if not all([column_mapping, fixed_schema, descriptive_schema]):
         print("Failed to load necessary schema files. Exiting.")
         return
@@ -320,7 +366,7 @@ def run_import_pipeline(config_path="config.yaml"):
         logging.info(f"No valid rows to export from any file.")
     print("Phase 2 complete.")
 
-def load_config(config_path="config.yaml"):
+def load_config(config_path):
     import yaml
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)

@@ -30,12 +30,14 @@
 - (COMPLETE) Support partial import and detailed error reporting per row.
 
 ### Phase 2: Database Export
-- Replace CSV export with direct export to a PostgreSQL database.
-- Ensure all database operations are robust and transactional.
+- (COMPLETE) Replace CSV export with direct export to a PostgreSQL database.
+- (COMPLETE) Ensure all database operations are robust and transactional.
 
 ### Phase 3: SharePoint Server 2019 Integration
-- Implement logic to import files from a SharePoint Server 2019 document library.
-- Continue exporting data to the database.
+- (COMPLETE) Implement logic to import files from a SharePoint Server 2019 document library.
+- (COMPLETE) Continue exporting data to the database.
+- (COMPLETE) Move processed files to 'imported' or 'broken' folders in SharePoint.
+- (COMPLETE) Fallback to local folder logic if SharePoint config is not present.
 
 ### Phase 4: Workflow Orchestration and Schema API
 - Integrate the workflow into Airflow for scheduled execution.
