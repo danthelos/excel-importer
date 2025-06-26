@@ -32,11 +32,11 @@ This project involves creating a Python application to automatically import data
 ### Phase 3: SharePoint Server 2019 Integration
 - Import Excel files from a SharePoint Server 2019 document library (not Office 365/SharePoint Online).
 - Continue exporting data to the database.
+- Implement email notifications: If there are problems with importing an Excel file, send an email notification to the file's author (as specified in the requirements). This is now implemented as part of Phase 3.
 
 ### Phase 4: Workflow Orchestration and Schema API
 - Integrate the mechanism into an Airflow DAG for scheduled execution.
 - Validate descriptive data using a REST API for schema validation (instead of a local file).
-- **Implement email notifications:** If there are problems with importing an Excel file, send an email notification to the file's author (as specified in the requirements). This is not yet implemented and is required for project completion.
 
 ## Goals
 - Start with a simple, testable local workflow and incrementally add complexity.

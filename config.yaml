@@ -2,7 +2,10 @@
 sharepoint:
   user_login: "your-email@your-domain.com"
   user_password: "your_password"
-  library_url: "https://your-tenant.sharepoint.com/sites/YourSite/YourLibrary"
+  library_url: "https://your-tenant.sharepoint.com/sites/YourSite/YourLibrary"  # Example: https://your-tenant.sharepoint.com/sites/YourSite/YourLibrary
+  source_folder: "Source"      # Name of the folder with new files
+  imported_folder: "Imported"  # Name of the folder for successfully processed files
+  broken_folder: "Broken"      # Name of the folder for files with errors
 
 # PostgreSQL Database Configuration
 database:
@@ -17,7 +20,6 @@ database:
 # Local Folders for Phase 1
 local:
   input_folder: "data/input" # use: "/data/input" in Unix environment
-  output_folder: "data/output" # use: "/data/output" in Unix environment
   imported_folder: "data/imported" # use: "/data/imported" in Unix environment
   broken_folder: "data/broken" # use: "/data/broken" in Unix environment
 
@@ -29,8 +31,7 @@ schema_api:
 
 # Email Notification Configuration
 notifications:
-  smtp_server: "smtp.your-email-provider.com"
-  smtp_port: 587
-  smtp_user: "your-email@your-domain.com"
-  smtp_password: "your_password"
-  sender_email: "noreply@your-domain.com" 
+  smtp_server_address: "smtp.your-email-provider.com:25"  # address with port, e.g. smtp.domain.com:25
+  from: "somerecipient@domain.com"  # default sender address
+  sending_email_enabled: false  # if false, do not send emails, just log the content
+  subject_prefix: "This is email from system X"  # default subject prefix 

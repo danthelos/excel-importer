@@ -38,6 +38,9 @@
 - (COMPLETE) Continue exporting data to the database.
 - (COMPLETE) Move processed files to 'imported' or 'broken' folders in SharePoint.
 - (COMPLETE) Fallback to local folder logic if SharePoint config is not present.
+- (COMPLETE) Fetch the author's email from SharePoint file metadata and use it for error notification emails.
+- (COMPLETE) Email notification is fully implemented and operational: when an error occurs during file import, an email is sent to the file's author (or fallback address), with all content logged and all settings configurable in config.yaml.
+- (COMPLETE) SharePoint configuration now uses explicit variables for source_folder, imported_folder, and broken_folder, and the code references these variables for all SharePoint operations.
 
 ### Phase 4: Workflow Orchestration and Schema API
 - Integrate the workflow into Airflow for scheduled execution.

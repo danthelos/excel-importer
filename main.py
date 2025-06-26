@@ -1,4 +1,5 @@
 import logging
+logging.basicConfig(level=logging.INFO)
 from utils import (
     load_config,
     load_schemas,
@@ -11,11 +12,12 @@ from utils import (
     send_error_email,
     log_event,
     get_new_files,
-    move_file
+    move_file,
+    read_excel_file
 )
 import os
 
-CONFIG_FILE = "config.yaml"
+CONFIG_FILE = "config-local.yaml"
 
 def main():
     # Step 1: Read configuration
@@ -47,24 +49,28 @@ def main():
             print(message)
             return
         dfs = {}
-        for file in sp_files:
+        file_info_map = {}
+        for file_info in sp_files:
             try:
-                df = read_excel_file(file['content'])
-                dfs[file['name']] = df
+                df = read_excel_file(file_info['content'])
+                dfs[file_info['name']] = df
+                file_info_map[file_info['name']] = file_info
             except Exception as e:
-                log_event(file['name'], None, None, None, "ERROR", "read_excel", "error", {"message": str(e)})
+                log_event(file_info['name'], None, None, None, "ERROR", "read_excel", "error", {"message": str(e)})
                 continue
         combined_good_df, file_results = validate_and_transform(dfs, column_mapping, fixed_schema, descriptive_schema)
         export_dataframe_to_db(combined_good_df, config, logging)
         for file, result in file_results.items():
+            file_info = file_info_map.get(file, {})
+            recipient_email = file_info.get('author_email')
             if result["good_df"] is None or (result["bad_rows"] and len(result["bad_rows"]) > 0):
                 if result["bad_rows"] and isinstance(result["bad_rows"], list) and result["bad_rows"] and isinstance(result["bad_rows"][0], dict):
                     error_report = format_error_report(result["bad_rows"])
-                    send_error_email(None, file, error_report)
-                move_file(sharepoint_cfg, file, "broken")
+                    send_error_email(config, recipient_email, file, error_report)
+                move_file(sharepoint_cfg, file, "broken_folder")
                 log_event(file, None, None, None, "ERROR", "move_file", "moved_to_broken")
             else:
-                move_file(sharepoint_cfg, file, "imported")
+                move_file(sharepoint_cfg, file, "imported_folder")
                 log_event(file, None, None, None, "INFO", "move_file", "moved_to_imported")
         print("Phase 3 complete (SharePoint import).")
         return
@@ -93,7 +99,7 @@ def main():
         if result["good_df"] is None or (result["bad_rows"] and len(result["bad_rows"]) > 0):
             if result["bad_rows"] and isinstance(result["bad_rows"], list) and result["bad_rows"] and isinstance(result["bad_rows"][0], dict):
                 error_report = format_error_report(result["bad_rows"])
-                send_error_email(None, file, error_report)
+                send_error_email(config, None, file, error_report)
             move_file_to_folder(file_path, broken_folder)
             log_event(file, None, None, None, "ERROR", "move_file", "moved_to_broken")
         else:

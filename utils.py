@@ -7,8 +7,10 @@ import os
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
-from office365.runtime.auth.user_credential import UserCredential
-from office365.sharepoint.client_context import ClientContext
+import requests
+from requests_ntlm import HttpNtlmAuth
+import smtplib
+from email.mime.text import MIMEText
 
 # This file will contain all the core functions for the Excel Importer application.
 
@@ -145,74 +147,112 @@ def format_error_report(bad_rows):
     return '\n'.join(lines)
 
 # --- SharePoint Functions (Placeholders) ---
+def _build_folder_url(shp_url, folder_name):
+    # Remove trailing slash if present and append folder name
+    if not shp_url.endswith("/"):
+        shp_url += "/"
+    return f"{shp_url}{folder_name}/Files"
+
 def get_new_files(sp_config):
     """
-    Connects to SharePoint Server 2019 and retrieves new Excel files from the configured document library.
-    Returns a list of dicts: {"name": ..., "content": ..., "author": ...}
+    Fetch new Excel files from the source_folder in SharePoint (on-prem) via REST API.
+    Returns a list of dicts: {"name": ..., "content": ..., "author": ..., "author_email": ...}
     """
-    import io
-    site_url = sp_config["library_url"]
+    shp_url = sp_config["library_url"]
+    source_folder = sp_config["source_folder"]
     username = sp_config["user_login"]
     password = sp_config["user_password"]
     results = []
+    auth = HttpNtlmAuth(username, password)
+    headers = {"Accept": "application/json;odata=verbose"}
+    folder_url = _build_folder_url(shp_url, source_folder)
     try:
-        ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
-        library = ctx.web.lists.get_by_title("Documents")  # Adjust if your library name is different
-        files = library.root_folder.files
-        ctx.load(files)
-        ctx.execute_query()
-        for file in files:
-            if file.name.lower().endswith(".xlsx"):
-                file_obj = library.root_folder.files.get_by_url(file.serverRelativeUrl)
-                ctx.load(file_obj)
-                ctx.execute_query()
-                file_content = file_obj.read()
-                # Try to get author (Created By)
+        response = requests.get(folder_url, auth=auth, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        for file in data['d']['results']:
+            if file['Name'].lower().endswith(".xlsx"):
+                file_url = file['_metadata']['uri']
+                file_response = requests.get(file_url, auth=auth, headers=headers)
+                file_content = file_response.content if file_response.status_code == 200 else None
+                # Fetch author information
+                author_url = f"{file_url}/Author"
+                author_response = requests.get(author_url, auth=auth, headers=headers)
                 author = None
-                try:
-                    ctx.load(file_obj, ["Author"])
-                    ctx.execute_query()
-                    author = getattr(file_obj.properties.get("Author"), "Email", None)
-                except Exception:
-                    pass
+                author_email = None
+                if author_response.status_code == 200:
+                    author_data = author_response.json()
+                    author = author_data['d'].get('Title', None)
+                    author_email = author_data['d'].get('Email', None)
                 results.append({
-                    "name": file.name,
+                    "name": file['Name'],
                     "content": file_content,
-                    "author": author
+                    "author": author,
+                    "author_email": author_email
                 })
         logging.info(f"Found {len(results)} Excel files in SharePoint.")
-    except Exception as e:
+    except requests.RequestException as e:
         logging.error(f"Error accessing SharePoint: {e}")
     return results
 
-def move_file(sp_config, file_name, destination_folder):
+def move_file(sp_config, file_name, destination_folder_key):
     """
-    Moves a file in SharePoint to a different folder (e.g., imported or broken).
+    Move a file in SharePoint to the specified folder (imported or broken) via REST API.
+    destination_folder_key: 'imported_folder' or 'broken_folder' from config
     """
-    site_url = sp_config["library_url"]
+    import os
     username = sp_config["user_login"]
     password = sp_config["user_password"]
+    shp_url = sp_config["library_url"]
+    source_folder = sp_config["source_folder"]
+    dest_folder = sp_config[destination_folder_key]
+    auth = HttpNtlmAuth(username, password)
+    headers = {"Accept": "application/json;odata=verbose"}
+    # Build REST URLs
+    src_url = _build_folder_url(shp_url, source_folder).replace("/Files", f"/{file_name}")
+    dest_url = _build_folder_url(shp_url, dest_folder).replace("/Files", f"/{file_name}")
+    move_api_url = f"{src_url}/moveTo?newurl='{dest_url}',flags=1"
     try:
-        ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
-        library = ctx.web.lists.get_by_title("Documents")  # Adjust if your library name is different
-        file_url = f"{library.root_folder.serverRelativeUrl}/{file_name}"
-        dest_url = f"{library.root_folder.serverRelativeUrl}/{destination_folder}/{file_name}"
-        file = ctx.web.get_file_by_server_relative_url(file_url)
-        file.move_to(dest_url, 1)  # 1 = overwrite if exists
-        ctx.execute_query()
-        logging.info(f"Moved file '{file_name}' to '{destination_folder}' in SharePoint.")
-        return True
-    except Exception as e:
+        response = requests.post(move_api_url, auth=auth, headers=headers)
+        if response.status_code in (200, 204):
+            logging.info(f"Moved file '{file_name}' to '{dest_folder}' in SharePoint.")
+            return True
+        else:
+            logging.error(f"Error moving file '{file_name}' in SharePoint: {response.status_code} {response.text}")
+            return False
+    except requests.RequestException as e:
         logging.error(f"Error moving file '{file_name}' in SharePoint: {e}")
         return False
 
 # --- Notification Functions (Placeholders) ---
-def send_error_email(recipient, file_name, error_report):
-    print(f"\n--- MOCK EMAIL TO: {recipient or 'user@example.com'} ---")
-    print(f"Subject: Errors in file {file_name}")
-    print("Body:")
-    print(error_report)
-    print("--- END EMAIL ---\n")
+def send_error_email(config, recipient, file_name, error_report):
+    notifications = config.get('notifications', {})
+    smtp_server_address = notifications.get('smtp_server_address', 'localhost:25')
+    from_addr = notifications.get('from', 'somerecipient@domain.com')
+    sending_enabled = notifications.get('sending_email_enabled', False)
+    subject_prefix = notifications.get('subject_prefix', 'This is email from system X')
+    
+    subject = f"{subject_prefix} - Błąd importu pliku {file_name}"
+    to_addr = recipient or from_addr
+    body = error_report
+    msg = MIMEText(body, _charset="utf-8")
+    msg['Subject'] = subject
+    msg['From'] = from_addr
+    msg['To'] = to_addr
+
+    log_message = f"EMAIL TO: {to_addr}\nSUBJECT: {subject}\nBODY:\n{body}"
+    # Always log the email content
+    logging.info(f"[EMAIL-CONTENT] {log_message}")
+    if not sending_enabled:
+        logging.info(f"[EMAIL-LOG-ONLY] {log_message}")
+        return
+    try:
+        server_host, server_port = smtp_server_address.split(":")
+        with smtplib.SMTP(server_host, int(server_port)) as server:
+            server.sendmail(from_addr, [to_addr], msg.as_string())
+        logging.info(f"[EMAIL-SENT] {log_message}")
+    except Exception as e:
+        logging.error(f"[EMAIL-ERROR] Failed to send email: {e}\n{log_message}")
 
 # --- Logging Functions ---
 def log_event(file_name, id_type, id_value, product_type, level, action, result, extra=None):
@@ -276,108 +316,18 @@ def export_dataframe_to_db(dataframe, config, logger):
                 raise
         logger.info(f"All rows exported to database table '{schema_name}.{table_name}'.")
 
-def run_import_pipeline(config_path):
-    import os
-    import yaml
-    import json
-    import logging
-    import pandas as pd
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    print("Starting Excel Importer Phase 2 (Database Export Mode)...")
-    # Load config and schemas
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-    except Exception as e:
-        logging.error(f"Error loading config: {e}")
-        print("Failed to load config. Exiting.")
-        return
-    column_mapping, fixed_schema, descriptive_schema = load_schemas()
-    if not all([column_mapping, fixed_schema, descriptive_schema]):
-        print("Failed to load necessary schema files. Exiting.")
-        return
-    local_cfg = config['local']
-    input_folder = local_cfg['input_folder']
-    output_folder = local_cfg['output_folder']
-    imported_folder = local_cfg['imported_folder']
-    broken_folder = local_cfg['broken_folder']
-    for folder in [input_folder, output_folder, imported_folder, broken_folder]:
-        os.makedirs(folder, exist_ok=True)
-    excel_files = [f for f in os.listdir(input_folder) if f.lower().endswith('.xlsx')]
-    if not excel_files:
-        print(f"No Excel files found in {input_folder}. Exiting.")
-        return
-    all_good_rows = []
-    for file in excel_files:
-        file_path = os.path.join(input_folder, file)
-        file_name = os.path.basename(file_path)
-        logging.info(f"Processing file: {file_name}")
-        try:
-            with open(file_path, "rb") as f:
-                file_content = f.read()
-            df_raw = read_excel_file(file_content)
-            if df_raw is None:
-                logging.error(f"Could not read Excel data from {file_name}. Skipping.")
-                log_event(file_name, None, None, None, "ERROR", "read_excel", "error", {"message": "Could not read Excel data"})
-                os.rename(file_path, os.path.join(broken_folder, file_name))
-                continue
-            df_renamed = rename_columns(df_raw, column_mapping)
-            df_structured = transform_and_structure_data(df_renamed, list(fixed_schema.keys()), descriptive_schema)
-            good_df, bad_rows = validate_and_split_rows(df_structured, fixed_schema, descriptive_schema)
-            for idx, row in df_structured.iterrows():
-                id_type = row.get('id_type')
-                id_value = row.get('id_value')
-                product_type = row.get('product_type')
-                is_good = not any(bad['row_num'] == idx+2 for bad in bad_rows)
-                if is_good:
-                    log_event(file_name, id_type, id_value, product_type, "INFO", "validate_row", "success")
-                else:
-                    bad = next(b for b in bad_rows if b['row_num'] == idx+2)
-                    log_event(file_name, id_type, id_value, product_type, "ERROR", "validate_row", "error", {"errors": bad['errors']})
-            if not good_df.empty:
-                all_good_rows.append(good_df)
-            if bad_rows:
-                error_report = format_error_report(bad_rows)
-                logging.error(f"{len(bad_rows)} bad rows found in {file_name}. Sending error report...")
-                send_error_email(None, file_name, error_report)
-                os.rename(file_path, os.path.join(broken_folder, file_name))
-                continue
-            os.rename(file_path, os.path.join(imported_folder, file_name))
-        except Exception as e:
-            logging.error(f"Error processing {file_name}: {e}")
-            log_event(file_name, None, None, None, "ERROR", "process_file", "error", {"message": str(e)})
-            try:
-                os.rename(file_path, os.path.join(broken_folder, file_name))
-            except Exception:
-                pass
-            continue
-    if all_good_rows:
-        combined_good_df = pd.concat(all_good_rows, ignore_index=True)
-        try:
-            export_dataframe_to_db(combined_good_df, config, logging)
-            logging.info(f"Exported {len(combined_good_df)} new versioned rows to PostgreSQL database.")
-            for _, row in combined_good_df.iterrows():
-                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product_type'), "INFO", "export_row", "success", {"target": "PostgreSQL"})
-        except Exception as db_exc:
-            logging.error(f"Database export failed: {db_exc}")
-            for _, row in combined_good_df.iterrows():
-                log_event("database", row.get('id_type'), row.get('id_value'), row.get('product_type'), "ERROR", "export_row", "error", {"target": "PostgreSQL", "error": str(db_exc)})
-    else:
-        logging.info(f"No valid rows to export from any file.")
-    print("Phase 2 complete.")
-
 def load_config(config_path):
     import yaml
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 def load_schemas():
-    def load_json_schema(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    column_mapping = load_json_schema("columns_mapping.json")
-    fixed_schema = load_json_schema("fixed_columns.json")
-    descriptive_schema = load_json_schema("descriptive_data.json")
+    with open("columns_mapping.json", 'r', encoding='utf-8') as f:
+        column_mapping = json.load(f)
+    with open("fixed_columns.json", 'r', encoding='utf-8') as f:
+        fixed_schema = json.load(f)
+    with open("descriptive_data.json", 'r', encoding='utf-8') as f:
+        descriptive_schema = json.load(f)
     return column_mapping, fixed_schema, descriptive_schema
 
 def find_excel_files(input_folder):
